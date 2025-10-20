@@ -1,3 +1,4 @@
+#include <stdint>
 #ifndef __COMMON_UARCH__
 #define __COMMON_UARCH__
 
