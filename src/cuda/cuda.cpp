@@ -62,19 +62,22 @@ int32_t guess_clock_multipilier(struct gpu_info* gpu, struct memory* mem) {
   int32_t clk1 = abs((mem->freq/1) - gpu->freq);
 
   int32_t min = mem->freq;
-  if(clkm_possible_for_uarch(8, gpu->arch) && min > clk8) { clk_mul = 8; min = clk8; }
-  if(clkm_possible_for_uarch(4, gpu->arch) && min > clk4) { clk_mul = 4; min = clk4; }
-  if(clkm_possible_for_uarch(2, gpu->arch) && min > clk2) { clk_mul = 2; min = clk2; }
-  if(clkm_possible_for_uarch(1, gpu->arch) && min > clk1) { clk_mul = 1; min = clk1; }
+  if(clkm_possible_for_uarch(8, gpu->arch) && min > clk8) { clk_mul = 8; min = clk8; return clk_mul; }
+  if(clkm_possible_for_uarch(4, gpu->arch) && min > clk4) { clk_mul = 4; min = clk4; return clk_mul; }
+  if(clkm_possible_for_uarch(2, gpu->arch) && min > clk2) { clk_mul = 2; min = clk2; return clk_mul; }
+  if(clkm_possible_for_uarch(1, gpu->arch) && min > clk1) { clk_mul = 1; min = clk1; return clk_mul; }
 
   return clk_mul;
 }
 
-struct memory* get_memory_info(struct gpu_info* gpu, cudaDeviceProp prop) {
+struct memory* get_memory_info(struct gpu_info* gpu, cudaDeviceProp prop, int gpu_idx) {
   struct memory* mem = (struct memory*) emalloc(sizeof(struct memory));
 
+  int memoryClockRatekHz;
+  cudaDeviceGetAttribute(&memoryClockRatekHz, cudaDevAttrMemoryClockRate, gpu_idx); // 0 here is the device number
+ 
   mem->size_bytes = (unsigned long long) prop.totalGlobalMem;
-  mem->freq = prop.memoryClockRate * 0.001f;
+  mem->freq = memoryClockRatekHz * 0.001f;
   mem->bus_width = prop.memoryBusWidth;
   mem->clk_mul = guess_clock_multipilier(gpu, mem);
   mem->type = guess_memtype_from_cmul_and_uarch(mem->clk_mul, gpu->arch);
@@ -143,8 +146,10 @@ struct gpu_info* get_gpu_info_cuda(struct pci_dev *devices, int gpu_idx) {
     printErr("%s: %s", cudaGetErrorName(err), cudaGetErrorString(err));
     return NULL;
   }
+  int clockRatekHz;
+  cudaDeviceGetAttribute(&clockRatekHz, cudaDevAttrClockRate, gpu_idx);
 
-  gpu->freq = deviceProp.clockRate * 1e-3f;
+  gpu->freq = clockRatekHz * 0.001f;
   gpu->vendor = GPU_VENDOR_NVIDIA;
   gpu->name = (char *) emalloc(sizeof(char) * (strlen(deviceProp.name) + 1));
   strcpy(gpu->name, deviceProp.name);
